@@ -1,5 +1,14 @@
 apiVersion: v1
 entries:
+  acme-service:
+  - apiVersion: v2
+    created: "2026-11-11T11:44:09.45963198Z"
+    description: A Helm chart for creating a standardised acme k8s service deployment.
+    digest: 896fd5453278ed43e5874d6a46c9f25b2261ad3ae0558772cec9fbd249f9178b
+    name: acme-service
+    urls:
+    - https://github.com/seanmcguigan/helm-charts/releases/download/acme-service-0.4.9/acme-service-0.4.9.tgz
+    version: 0.4.9
   hello-world:
   - apiVersion: v2
     appVersion: 1.16.0
@@ -11,4 +20,4 @@ entries:
     urls:
     - https://github.com/seanmcguigan/helm-charts/releases/download/hello-world-0.1.0/hello-world-0.1.0.tgz
     version: 0.1.0
-generated: "2026-11-11T10:48:41.728122132Z"
+generated: "2026-11-11T11:44:09.459636176Z"
