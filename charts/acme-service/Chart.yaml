@@ -1,0 +1,4 @@
+apiVersion: v2
+name: acme-service
+description: A Helm chart for creating a standardised acme k8s service deployment.
+version: 0.4.9

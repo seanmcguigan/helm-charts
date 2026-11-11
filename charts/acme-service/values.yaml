@@ -1,0 +1,182 @@
+# environment -- The environment the application is being deployed into (e.g. staging or production).
+environment: staging
+# clusterVersion -- The cluster version the application is being deployed into (e.g. v1).
+clusterVersion: v1
+# clusterConfigMap -- The configmap for the cluster. Used to add cluster env vars to each acme-service deployment. Defaults to `<environment>->clusterVersion>` if not set.
+clusterConfigMap:
+image:
+  repository: nginx
+  tag: latest
+  pullPolicy: IfNotPresent
+
+scaling:
+  # scaling.minReplicas -- The minimum number of instances for the applications Horizontal Pod Autoscaling definition.
+  minReplicas: 2
+  # replicas.maxReplicas -- The maximum number of instances for the applications Horizontal Pod Autoscaling definition.
+  maxReplicas: 8
+  # replicas.cpuAvgUtilisation -- The percentage of CPU utilisation which should trigger scaling events
+  cpuAvgUtilisation:
+  # replicas.memoryAvgUtilisation -- The percentage of memory utilisation which should trigger scaling events
+  memoryAvgUtilisation:
+  # replicas.metrics -- An array of metric values which are passed through directly to the deployment. Useful for additional metric types such as Pods, Object and External
+  metrics: []
+
+# createK8sService -- When true, a K8s service is create and pods ports configured. Otherwise it simply creates a deployment, useful for defining Queue workers
+createK8sService: true
+
+# ports -- A list of port configurations. HTTP ports should always be the first element in the list
+ports:
+    # containerPort -- The container port to use
+  - containerPort: 5000
+    # name -- The name of the container port. Will be prefixed with the protocol for istio.
+    name: app
+    # protocol -- The protocol to use for the container port.
+    protocol: TCP
+    # protocolName -- The TCP traffic type which makes up the service's port name: See https://istio.io/latest/docs/ops/configuration/traffic-management/protocol-selection/
+    protocolName: http
+
+# command -- The command for the container to run in array format.
+command: []
+
+# secrets -- Here you can pass through a list of secret names that will be loaded from AWS SSM param store as environment variables. The path in param store must be as follows: `<secretPathPrefix>/MY_ENV_VAR`. For example, passing `[DATABASE_URL]` for a release named `myapp` in `staging` environment using the default secretPathPrefix of `/acme-services/clusterVersion/releaseName/environment` would look for a secret in `/acme-services/v2/myapp/staging/DATABASE_URL` and set the value of this as the environment variable `DATABASE_URL` in the container.
+secrets: []
+
+# secretPathPrefix -- Defaults to `/acme-services/clusterVersion/releaseName/environment` if not set. If you want to load the secrets from a custom prefix that differs from the release name, set it here. E.g. A release named `myapp-backend` could load secrets from `/acme-services/v1/myapp/staging` instead of the default `/acme-services/v1/myapp-backend/staging`.
+secretPathPrefix:
+
+# secretsAdditional -- If you have secrets under a different path, or if you want to map the secret to a different name, you can use secretsAdditional in the format [{key: /my/other/ssm/path/FOO, name: BAR }]
+secretsAdditional: []
+
+# volumes -- Specifies any volumes to make available to the Pod
+volumes: []
+
+# volumeMounts -- Specifies the mount location (and options) for the service's container from the volumes list
+volumeMounts: []
+
+deployment:
+  # deployment.annotations -- Annotations to add to the deployment. We add an annotation for https://github.com/stakater/Reloader by default.
+  annotations:
+    reloader.stakater.com/auto: "true"
+
+serviceAccount:
+  create: true
+  # serviceAccount.name -- A name for the service account. If not set, will use the release name instead.
+  name:
+  # serviceAccount.roleArn -- An IAM role arn to add as an annotation to the created service account for pod based IAM permissions.
+  roleArn:
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "120Mi"
+  limits:
+    memory: "120Mi"
+
+nodeSelector: {}
+tolerations: []
+
+affinity:
+  # affinity.podAntiAffinity -- Pod anti-affinity rules. By default, acme-service pods have a hard anti-affinity for prometheus since it can be quite resource intensive. Set this to `{}` to overwrite this default.
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app
+              operator: In
+              values:
+                - prometheus
+        topologyKey: "kubernetes.io/hostname"
+
+ingress:
+  # ingress.prefix -- A prefix to apply to the ingress address. Becomes RELEASE-NAME.<prefix>.<environment>.<baseDomain>
+  prefix: core
+  # ingress.baseDomain -- The base ingress domain. Becomes RELEASE-NAME.<prefix>.<environment>.<baseDomain>
+  baseDomain: acme.example
+  # ingress.domainOverride -- Overwrites the full base domain to use for external ingress hosts. e.g. RELEASE-NAME.<ingressDomainOverrideValue>
+  domainOverride:
+
+istio:
+  # istio.enable -- Whether or not to include istio components like VirtualService and ServiceEntry.
+  enable: true
+  # istio.enableCrossRegionWrites -- When true, rewrite rules are added to VirtualServices to direct WRITE requests to the external cluster
+  enableCrossRegionWrites: false
+  # istio.crossRegionWriteTimeout -- When enableCrossRegionWrites is true, this value sets the response timeout for the cross region WRITE requests to the external cluster. Without specifying this, the istio default would be 15s.
+  crossRegionWriteTimeout: 30s
+  # istio.defaultGateway -- The domain for the default ISTIO Gateway.
+  defaultGateway: default-gateway
+  # istio.rewriteAppHTTPProbers -- Whether or not to rewrite HTTP liveness and readiness probes to be sent to the pilot agent first. This must be true when mTLS is enabled.
+  rewriteAppHTTPProbers: "true"
+
+  routing:
+    # istio.routing.crossRegionSubset -- The DestinationRule subset to use for forwarding cross region requests to
+    crossRegionSubset: "eu"
+    # istio.routing.defaultSubset -- The DestinationRule subset to use for local requests (eu|ap)
+    defaultSubset:
+
+  crossRegionRedirectVerbs:
+    - DELETE
+    - PATCH
+    - POST
+    - PUT
+
+  # istio.crossRegionIgnoreUrls -- Optional list of URI re2 regex patterns to ignore from crossRegion redirects (if enabled).
+  crossRegionIgnoreURIPatterns: []
+
+sharedConfiguration:
+  external:
+    # sharedConfiguration.external.protocol -- The protocal to set for the external url property.
+    protocol: https://
+    # sharedConfiguration.external.urlSuffix -- Appends a path suffix for the external url property. Used if API versioning is in place (for example).
+    urlSuffix:
+  internal:
+    # sharedConfiguration.internal.protocol -- The protocal to set for the internal url property.
+    protocol: http://
+    # sharedConfiguration.internal.urlSuffix -- Appends a path suffix for the internal url property. Used if API versioning is in place (for example).
+    urlSuffix:
+
+prometheus:
+  serviceMonitor:
+    # prometheus.serviceMonitor.enable -- Creates a ServiceMonitor resource for use with custom metrics
+    enable: false
+    # prometheus.serviceMonitor.portName -- Sets which port on which the ServiceMonitor extracts metrics
+    portName: app
+  scraper:
+    # prometheus.scraper.enable -- Adds annotations to the deployment to allow for prometheus to scrape metrics from it
+    enable: false
+    # prometheus.scraper.endpoint -- Specifies the URL which prometheus should pull from
+    endpoint: /metrics
+    # prometheus.scraper.metricsPort -- Specifies a different port to scrape metrics from. If blank, the service's main port will be used
+    metricsPort:
+
+  uwsgiExporter:
+    # prometheus.uwsgiExporter.enable -- Adds an additional container into the deployment which exports uWSGI stats if true
+    enable: false
+    # prometheus.uwsgiExporter.statsEndpoint -- The endpoint from which the export retrieves metrics from. This is defined by the uwsgi configuration of the service
+    statsEndpoint: http://localhost:9191
+    # prometheus.uwsgiExporter.image -- The image containing the exporter
+    image: 123456789012.dkr.ecr.eu-west-1.amazonaws.com/acme/uwsgi-exporter:v1.0.0
+
+# additionalContainers -- Allow passing entire container definitions to append to the main deployment. Useful for proxy containers etc.
+additionalContainers: {}
+# initContainers -- any init containers to add to the deployment
+initContainers: []
+# podAnnotations -- Additional annotations to add to the pod template. Merged with chart-managed annotations (Istio, Prometheus).
+podAnnotations: {}
+
+flux:
+  # flux.enable -- Whether or not to enable fluxv2 components ImageRepository and ImagePolicy.
+  enable: false
+  imageRepository:
+    # flux.imageRepository.interval -- The length of time to wait between scans of the image repository.
+    interval: 1m0s
+  imagePolicy:
+    # flux.imagePolicy.filterTags -- Specify a filter on the image tags before they are considered by the policy rule.
+    filterTags:
+      # flux.imagePolicy.filterTags.patternSuffix -- Only tags that match the pattern are considered by the policy rule. The filterTags.pattern is comprised of "^{{ $.Values.environment }}{{ .patternSuffix }}" . if updating the patternSuffix, be sure to update the extract value as required.
+      patternSuffix: '-[a-fA-F0-9]+-(?P<bn>.*)'
+      # flux.imagePolicy.filterTags.extract -- Field used to extract a value from the matching tags which is supplied to the policy rule instead of the original tags.
+      extract: '$bn'
+    policy:
+      numerical:
+        # flux.imagePolicy.policy.numerical.order -- Numerical policy chooses the last tag when all the tags are sorted numerically (in either ascending or descending order).
+        order: asc

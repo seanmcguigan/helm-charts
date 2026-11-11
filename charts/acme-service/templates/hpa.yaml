@@ -1,0 +1,33 @@
+{{- if or .Values.scaling.cpuAvgUtilisation (or .Values.scaling.memoryAvgUtilisation .Values.scaling.metrics) }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Release.Name }}
+  minReplicas: {{ .Values.scaling.minReplicas }}
+  maxReplicas: {{ .Values.scaling.maxReplicas }}
+  metrics:
+  {{- if .Values.scaling.cpuAvgUtilisation }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.scaling.cpuAvgUtilisation }}
+  {{- end }}
+  {{- if .Values.scaling.memoryAvgUtilisation }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.scaling.memoryAvgUtilisation }}
+  {{- end }}
+  {{- if .Values.scaling.metrics }}
+  {{ toYaml .Values.scaling.metrics | nindent 4 }}
+  {{- end }}
+{{- end }}

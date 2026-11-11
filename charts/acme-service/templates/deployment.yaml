@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  annotations:
+    {{- toYaml .Values.deployment.annotations | nindent 4 }}
+  labels:
+    {{- include "acme-service.labels" . | nindent 4 }}
+    {{- include "acme-service.tracingLabels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.scaling.minReplicas }}
+  selector:
+    matchLabels:
+      {{- include "acme-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "acme-service.selectorLabels" . | nindent 8 }}
+        {{- include "acme-service.tracingLabels" . | nindent 8 }}
+      annotations:
+        {{- include "acme-service.deploymentPodAnnotations" . | nindent 8 }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "acme-service.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        {{- if .Values.prometheus.uwsgiExporter.enable }}
+        - name: uwsgi-exporter
+          image: {{ .Values.prometheus.uwsgiExporter.image }}
+          args:
+          - "--stats.uri={{ .Values.prometheus.uwsgiExporter.statsEndpoint }}"
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 10m
+              memory: 10Mi
+            limits:
+              cpu: 100m
+              memory: 25Mi
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9117
+          ports:
+          - name: "metrics" # used for prometheus targetting 
+            containerPort: 9117
+        {{- end }}
+        - name: {{ .Release.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.command }}
+          command:
+          {{- range .Values.command }}
+          - {{ . | quote }}
+          {{- end }}
+          {{- end }}
+          {{- with .Values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.createK8sService }}
+          ports:
+          {{- range .Values.ports }}
+          - name: {{ .name }}
+            containerPort: {{ .containerPort }}
+            protocol: {{ .protocol }}
+          {{- end }}
+          {{- end }}
+          {{- with .Values.env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: "{{ default (printf "%s-%s" $.Values.environment $.Values.clusterVersion) $.Values.clusterConfigMap }}"
+            {{- if or (.Values.secrets) (.Values.secretsAdditional) }}
+            - secretRef:
+                name: {{ .Release.Name }}-secrets
+            {{- end }}
+            {{- if .Values.envFrom }}
+            {{- toYaml .Values.envFrom | nindent 12 -}}
+            {{- end }}
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- with .Values.additionalContainers }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.volumes}}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.initContainers}}
+      initContainers:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}

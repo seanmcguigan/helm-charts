@@ -1,0 +1,53 @@
+{{- if and .Values.istio.enable .Values.createK8sService }}
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- include "acme-service.labels" . | nindent 4 }}
+spec:
+  hosts:
+    - {{ include "acme-service.ingressDomain" . }}
+  gateways:
+    - {{ .Values.istio.defaultGateway }}
+  http:
+    {{- if .Values.istio.enableCrossRegionWrites }}
+    {{- if .Values.istio.crossRegionIgnoreURIPatterns }}
+    - name: "write-requests-local"
+      match:
+        {{- range .Values.istio.crossRegionIgnoreURIPatterns }}
+        - uri:
+            regex: "{{ . }}"
+        {{- end }}
+      route:
+        - destination:
+            port:
+              number: {{ (index .Values.ports 0).containerPort }}
+            host: {{ include "acme-service.k8sServiceDomain" . }}
+            subset: {{ .Values.istio.routing.defaultSubset }}
+      timeout: 30s
+    {{- end }}
+    - name: "write-requests-to-eu"
+      match:
+        {{- range .Values.istio.crossRegionRedirectVerbs }}
+        - method:
+            exact: "{{ . | upper }}"
+        {{- end }}
+      route:
+        - destination:
+            port:
+              number: {{ (index .Values.ports 0).containerPort }}
+            host: {{ include "acme-service.k8sServiceDomain" . }}
+            subset: {{ .Values.istio.routing.crossRegionSubset }}
+      timeout: 30s
+    {{- end }}
+    - name: "default"
+      route:
+        - destination:
+            port:
+              number: {{ (index .Values.ports 0).containerPort }}
+            host: {{ include "acme-service.k8sServiceDomain" . }}
+            {{- if .Values.istio.routing.defaultSubset }}
+            subset: {{ .Values.istio.routing.defaultSubset }}
+            {{- end }}
+{{- end }}

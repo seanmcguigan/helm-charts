@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-shared
+  labels:
+    {{- include "acme-service.labels" . | nindent 4 }}
+data:
+  {{$externalParams := dict "Domain" (include "acme-service.ingressDomain" .) "Values" .Values.sharedConfiguration.external -}}
+  EXTERNAL_CLUSTER_URL: {{ include "acme-service.configMapURL" $externalParams }}
+  INTERNAL_CLUSTER_URL: "{{ .Values.sharedConfiguration.internal.protocol }}{{ include "acme-service.k8sServiceDomain" . }}:{{ (index .Values.ports 0).containerPort }}"
+  {{- range .Values.ports }}
+  INTERNAL_CLUSTER_URL_{{ .protocolName | upper }}: "{{ $.Values.sharedConfiguration.internal.protocol }}{{ include "acme-service.k8sServiceDomain" $ }}:{{ .containerPort }}"
+  {{- end }}
