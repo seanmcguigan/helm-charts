@@ -4,16 +4,17 @@ A collection of service Helm charts, published as a Helm repository on GitHub Pa
 
 | Chart | Description |
 | ----- | ----------- |
+| [acme-service](charts/acme-service) | Standardised service deployment: Deployment, Service, ConfigMap, HPA and ServiceAccount, with optional Istio VirtualService, ExternalSecret, Prometheus ServiceMonitor and Flux image automation |
 | [hello-world](charts/hello-world) | nginx demo chart (`helm create` scaffold) |
 
 ## Using the charts
 
 ```bash
-helm repo add seanmcguigan https://seanmcguigan.github.io/helm-charts
+helm repo add helm-charts https://seanmcguigan.github.io/helm-charts
 helm repo update
-helm search repo seanmcguigan
+helm search repo helm-charts
 
-helm install my-release seanmcguigan/hello-world --version 0.1.0
+helm install my-release helm-charts/hello-world --version 0.1.0
 ```
 
 ## Repository layout
