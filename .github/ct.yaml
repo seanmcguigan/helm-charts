@@ -1,0 +1,11 @@
+# chart-testing (ct) configuration, used by .github/workflows/lint-test.yaml
+# https://github.com/helm/chart-testing#configuration
+chart-dirs:
+  - charts
+target-branch: main
+# Fail the PR if a chart changed but its Chart.yaml version was not bumped.
+# chart-releaser only publishes a chart when its version is new, so an
+# un-bumped change would silently never be released.
+check-version-increment: true
+# Chart.yaml `maintainers` entries must be GitHub users when this is true.
+validate-maintainers: false

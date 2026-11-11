@@ -1,0 +1,51 @@
+name: Release Charts
+
+# Packages every chart under charts/ whose Chart.yaml version has no GitHub
+# release yet, attaches the .tgz to a release named <chart>-<version>, and
+# updates index.yaml on the gh-pages branch (served by GitHub Pages).
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "charts/**"
+  workflow_dispatch:
+
+# Releases push to gh-pages; never run two at once.
+concurrency:
+  group: release-charts
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          # chart-releaser pushes to gh-pages through a git worktree, which
+          # needs the checkout's credentials to stay available.
+          persist-credentials: true
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@92c6b97fa9f664492a2592e0d1d80bc6bf378957 # v1.9.0
+        with:
+          charts_dir: charts
+          # One repo, many charts: don't let each chart steal the "latest" badge.
+          mark_as_latest: false
+          # A chart edited without a version bump is skipped instead of failing
+          # the run. PRs are guarded by `ct lint` (check-version-increment).
+          skip_existing: true
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"

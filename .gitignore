@@ -1,0 +1,6 @@
+# helm package output
+*.tgz
+
+# chart-releaser working directories (if you run `cr` locally)
+.cr-release-packages/
+.cr-index/
