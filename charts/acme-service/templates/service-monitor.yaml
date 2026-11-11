@@ -1,0 +1,14 @@
+{{- if .Values.prometheus.serviceMonitor.enable }}
+kind: ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- include "acme-service.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  endpoints:
+  - port: {{ .Values.prometheus.serviceMonitor.portName }}
+{{- end }}

@@ -1,0 +1,32 @@
+{{- if .Values.flux }}
+{{- if eq .Values.flux.enable true }}
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: {{ .Release.Name }}
+  namespace: flux-system
+spec:
+  image: "{{ .Values.image.repository }}"
+  {{- with .Values.flux }}
+  interval: {{ .imageRepository.interval }}
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: {{ $.Release.Name }}
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: {{ $.Release.Name }}
+  filterTags:
+    {{- with .imagePolicy.filterTags }}
+    pattern: "^{{ $.Values.environment }}{{ .patternSuffix }}"
+    extract: "{{ .extract }}"
+    {{- end }}
+  policy:
+    numerical:
+      order: {{ .imagePolicy.policy.numerical.order }}
+  {{- end }}
+{{- end }}
+{{- end }}
+
